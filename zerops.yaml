@@ -1,0 +1,108 @@
+zerops:
+  - setup: anvilapi
+    build:
+      base: nodejs@22
+      os: ubuntu
+      buildCommands:
+        - npm install --no-audit --no-fund
+        - npm run build -w @anvil/web
+        - npm run build -w @anvil/api
+        - mkdir -p apps/api/dist/public apps/api/public apps/api/dist/samples
+        - cp -r apps/web/dist/* apps/api/dist/public/
+        - cp -r apps/web/dist/* apps/api/public/
+        - cp -r apps/api/samples/* apps/api/dist/samples/
+        - test -f apps/api/dist/public/index.html
+      deployFiles:
+        - .
+      cache:
+        - node_modules
+        - package-lock.json
+    run:
+      base: nodejs@22
+      os: ubuntu
+      ports:
+        - port: 3000
+          httpSupport: true
+      envVariables:
+        PORT: "3000"
+        DATABASE_URL: postgresql://${anvildb_user}:${anvildb_password}@${anvildb_hostname}:${anvildb_port}/${anvildb_dbName}
+        NATS_HOST: ${anvilbus_hostname}
+        NATS_PORT: ${anvilbus_port}
+        NATS_USER: ${anvilbus_user}
+        NATS_PASS: ${anvilbus_password}
+        REDIS_URL: ${anvilcache_connectionString}
+        S3_ENDPOINT: ${anvilstore_apiUrl}
+        S3_BUCKET: ${anvilstore_bucketName}
+        S3_KEY: ${anvilstore_accessKeyId}
+        S3_SECRET: ${anvilstore_secretAccessKey}
+        S3_REGION: us-east-1
+        NATS_SUBJECT: anvil.jobs
+      start: sh -c "cd apps/api && node dist/index.js"
+      healthCheck:
+        httpGet:
+          port: 3000
+          path: /api/health
+
+  - setup: anvilworker
+    build:
+      base: nodejs@22
+      os: ubuntu
+      prepareCommands:
+        - sudo apt-get update -qq
+        - sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq qpdf ghostscript img2pdf
+      buildCommands:
+        - npm install --no-audit --no-fund
+        - npm run build -w @anvil/worker
+      deployFiles:
+        - .
+      cache:
+        - node_modules
+    run:
+      base: nodejs@22
+      os: ubuntu
+      # packages from build.prepareCommands land in cached run image via addToRunPrepare pattern —
+      # install PDF tools only in run.prepare (once) WITHOUT apt-get update every time if possible
+      prepareCommands:
+        - "command -v qpdf >/dev/null || (sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq qpdf ghostscript img2pdf)"
+      envVariables:
+        DATABASE_URL: postgresql://${anvildb_user}:${anvildb_password}@${anvildb_hostname}:${anvildb_port}/${anvildb_dbName}
+        NATS_HOST: ${anvilbus_hostname}
+        NATS_PORT: ${anvilbus_port}
+        NATS_USER: ${anvilbus_user}
+        NATS_PASS: ${anvilbus_password}
+        REDIS_URL: ${anvilcache_connectionString}
+        S3_ENDPOINT: ${anvilstore_apiUrl}
+        S3_BUCKET: ${anvilstore_bucketName}
+        S3_KEY: ${anvilstore_accessKeyId}
+        S3_SECRET: ${anvilstore_secretAccessKey}
+        S3_REGION: us-east-1
+        NATS_SUBJECT: anvil.jobs
+        NATS_QUEUE: anvil-workers
+      start: sh -c "cd apps/worker && node dist/index.js"
+
+  - setup: anvilweb
+    build:
+      base: nodejs@22
+      os: ubuntu
+      buildCommands:
+        - npm install --no-audit --no-fund
+        - npm run build -w @anvil/web
+        - test -f apps/web/dist/index.html
+      deployFiles:
+        - .
+      cache:
+        - node_modules
+    run:
+      base: nodejs@22
+      os: ubuntu
+      ports:
+        - port: 3000
+          httpSupport: true
+      envVariables:
+        PORT: "3000"
+        API_ORIGIN: http://anvilapi:3000
+      start: node apps/web/server.mjs
+      healthCheck:
+        httpGet:
+          port: 3000
+          path: /healthz

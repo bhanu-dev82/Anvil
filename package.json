@@ -1,0 +1,15 @@
+{
+  "name": "anvil",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Anvil — multi-service PDF forge on Zerops",
+  "workspaces": ["apps/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "npm run build -w @anvil/web && npm run build -w @anvil/api && npm run build -w @anvil/worker",
+    "build:api": "npm run build -w @anvil/web && npm run build -w @anvil/api",
+    "dev:api": "npm run dev -w @anvil/api",
+    "dev:worker": "npm run dev -w @anvil/worker",
+    "dev:web": "npm run dev -w @anvil/web"
+  }
+}

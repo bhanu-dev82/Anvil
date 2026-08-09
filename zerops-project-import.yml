@@ -1,0 +1,38 @@
+# Reference import shape used for Anvil on Zerops (hostnames already live in project)
+services:
+  - hostname: anvildb
+    type: postgresql:single@16
+    profile: oltp-hobby
+    priority: 10
+  - hostname: anvilcache
+    type: valkey:single@7.2
+    profile: hobby
+    priority: 10
+  - hostname: anvilbus
+    type: nats:single@2.12
+    priority: 10
+  - hostname: anvilstore
+    type: object-storage
+    objectStorageSize: 5
+    objectStoragePolicy: private
+    priority: 10
+  - hostname: anvilapi
+    type: nodejs@22
+    priority: 5
+    startWithoutCode: true
+    enableSubdomainAccess: true
+    minContainers: 1
+    maxContainers: 2
+  - hostname: anvilworker
+    type: nodejs@22
+    priority: 5
+    startWithoutCode: true
+    minContainers: 1
+    maxContainers: 2
+  - hostname: anvilweb
+    type: nodejs@22
+    priority: 5
+    startWithoutCode: true
+    enableSubdomainAccess: true
+    minContainers: 1
+    maxContainers: 2
